@@ -2,9 +2,6 @@ import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
 
-# from Module.DMD import DMD
-# from Module.face2face import Dataset
-
 def DMD_touring(DMD, Dataset, path, ts_length, r=None):
     """
     Args:
@@ -51,22 +48,24 @@ def MAELoss(y, y_hat):
         raise ValueError("Inputs must have same shape.")
     return np.abs(sum(y - y_hat)) / len(y)
 
-def disconnector(adj, threshold):
+def disconnector(adjs, threshold, binary=False):
     """
     If value in adjacency matrix is too small, It is considered as disconnected.
 
     Args:
-        adj (numpy.ndarray) : An adjacency matrix to process.
+        adj (numpy.ndarray) : Adjacency matrices to process.
         threshold (float) : A Threshold to determine whether to connect.
+
+    Returns:
+        disconnected (numpy.ndarray) : Processed Adjacency matrices.
     """
-    for i in range(adj.shape[0]):
-        for j in range(adj.shape[1]):
-            if adj[i][j] < threshold:
-                adj[i][j] = 0
+    adjs[adjs < threshold] = 0
+    if binary == True:
+        adjs[adjs >= threshold] = 1
 
-    return adj
+    return adjs
 
-def linkLoss(y, y_hat):
+def linkAccuracy(y, y_hat):
     """
     Novel defined loss for validate link between edges in two data:
         linkLoss = (total_link_num - wrong_link_num) / total_link_num
@@ -98,29 +97,6 @@ def linkLoss(y, y_hat):
 
     return (total_link_num-wrong_link_num) / total_link_num
 
-def get_loss_list(DMD, Dataset, path, ts_length, r=None):
-    """
-    Get list of MAE, Link loss for every timestep.
-
-    Args:
-        DMD (class) : Class implementation of DMD algorithm.
-        Dataset (class) : Graph Dataset.
-        ts_length (int) : length of time series window.
-        r (int) : Number of singular value to compute.
-
-    Returns:
-        Loss list of MAE and link loss.
-    """
-    exact, predict = DMD_touring(DMD, Dataset, path, ts_length, r)
-
-    MAE_list = []
-    link_list = []
-    for i in range(len(predict)):
-        MAE_list.append(MAELoss(exact[i], predict[i]))
-        link_list.append(linkLoss(exact[i].reshape(7, 7), predict[i].reshape(7, 7)))
-
-    return MAE_list, link_list
-
 def lossPlot(loss_list):
     """
     Plotting losses for every time steps.
@@ -135,12 +111,64 @@ def lossPlot(loss_list):
     plt.grid(True)
     plt.show()
 
+def link_optimizer(y, y_hat, binary=False):
+    """
+    Optimizing threshold for maximizing LinkAccuracy.
+
+    Args:
+        y (numpy.ndarray) : Exact dataset with time step
+        y_hat (numpy.ndarray) : predicted dataset with time step
+    Returns:
+        threshold (float) : Optimal Threshold maximizes linkAccuracy
+    """
+    edge = round(np.sqrt(len(y[0])))
+    thresholds = np.linspace(min(y_hat.flatten()), max(y_hat.flatten()), num=100)
+
+    accuracyList = []
+    for threshold in thresholds:
+        _y_hat = y_hat.copy()
+        _y_hat = disconnector(_y_hat, threshold, binary)
+        acc = 0
+        for i in range(len(y)):
+            # Reshaping into Adjacency matrix
+            acc += linkAccuracy(y[i].reshape(edge, edge), _y_hat[i].reshape(edge, edge))
+        accuracyList.append(acc)
+    
+    return thresholds[accuracyList.index(max(accuracyList))]
+
+def get_loss_list(DMD, Dataset, path, ts_length, r=None):
+    """
+    Get list of MAE, Link loss for every timestep.
+
+    Args:
+        DMD (class) : Class implementation of DMD algorithm.
+        Dataset (class) : Graph Dataset.
+        ts_length (int) : length of time series window.
+        r (int) : Number of singular value to compute.
+
+    Returns:
+        Loss list of MAE and link loss.
+    """
+    exact, predict = DMD_touring(DMD, Dataset, path, ts_length, r)
+    edge = round(np.sqrt(len(exact[0])))
+
+    threshold = link_optimizer(exact, predict)
+
+    MAE_list = []
+    link_list = []
+    for i in range(len(predict)):
+        disconneted = disconnector(predict[i], threshold)
+        MAE_list.append(MAELoss(exact[i], disconneted))
+        link_list.append(linkAccuracy(exact[i].reshape(edge, edge), disconneted.reshape(edge, edge)))
+
+    return MAE_list, link_list, threshold
+
 def graphViz(adj_matrix):
     """
     Visualize Graph data.
 
     Args:
-        adj_matrix (list or numpy.ndarray) : adjacency matrix of graph to visualize.
+        adj_matrix (list or numpy.ndarray) : A adjacency matrix of graph to visualize. 
     """
     G = nx.Graph()
     G = nx.from_numpy_array(adj_matrix)

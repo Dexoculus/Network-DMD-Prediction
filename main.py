@@ -12,8 +12,9 @@ dataset = Dataset
 
 exact, predict = DMD_touring(dmd, dataset, w_path, ts_length=1, r=10)
 
-MAE, Link = get_loss_list(dmd, dataset, w_path, ts_length=1, r=10)
+MAE, Link, threshold= get_loss_list(dmd, dataset, w_path, ts_length=1, r=10)
 
+print(threshold)
 lossPlot(MAE)
 lossPlot(Link)
 
