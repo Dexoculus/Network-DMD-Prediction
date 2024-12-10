@@ -13,8 +13,9 @@ class Dataset:
     
     # Function to create an adjacency matrix from a single row = timestep
     def _to_adjacency_matrix(self, row):
+        edge = round(np.sqrt(edge, edge))
         # Extract only the columns related to the adjacency matrix, ignoring the 'TIME' column
-        adjacency_matrix = row[1:].values.reshape((7, 7))
+        adjacency_matrix = row[1:].values.reshape((edge, edge))
         
         return adjacency_matrix
     
@@ -37,3 +38,18 @@ class Dataset:
             return (num_samples, ) + sample_shape
         else:
             return (0, )
+        
+    def get_state_vector(self, idx):
+        """
+        Get the state vector at the given index.
+
+        Args:
+            idx (int): Index of the sample.
+
+        Returns:
+            numpy.ndarray: State vector at index idx.
+                           Shape: (num_nodes * num_nodes,)
+        """
+        state_matrix = self.adj[idx]
+        state_vector = state_matrix.flatten(order='C')
+        return state_vector

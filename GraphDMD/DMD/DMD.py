@@ -3,10 +3,17 @@ import pandas as pd
 from scipy.sparse.linalg import svds
 from numpy.lib.stride_tricks import sliding_window_view
 
+
 class DMD:
     """
     Implementation of Dynamic Mode Decomposition (DMD) algorithm.
     """
+    def category(self):
+        """
+        Returns which kind of DMD algorithm this class is.
+        """
+        return 'DMD'
+    
     def get_dmd_pair(self, data, ts_length: int):
         """
         Generates data pair (X1, X2) for DMD algorithm.
@@ -24,21 +31,21 @@ class DMD:
                 Accurs when data type is not suppoted.
         """
         # Validation of input data type and shape
-        if isinstance(data, pd.DataFrame): # pandas DataFrame
+        if isinstance(data, pd.DataFrame):
             y = data.values.T  # shape = (feature_dim, num_samples)
-        elif isinstance(data, np.ndarray): # numpy array
+        elif isinstance(data, np.ndarray):
             if data.ndim == 1:
                 # Case of 1-iemensional array (e.g., (num_samples,))
-                y = data.reshape(1, -1)  # shape = (1, num_samples)
+                y = data.reshape(1, -1) # shape = (1, num_samples)
             elif data.ndim == 2:
                 # Case of 2-dimensional array (e.g., (num_samples, feature_dim))
-                y = data.T  # shape = (feature_dim, num_samples)
+                y = data.T # shape = (feature_dim, num_samples)
             else:
                 raise ValueError("data must be 1 or 2 diment numpy ndarray.")
         else:
             raise TypeError("data must be pandas DataFrame or numpy ndarray.")
 
-        num_features, num_samples = y.shape  # extract number of features and samples
+        num_features, num_samples = y.shape # extract number of features and samples
 
         if num_samples < ts_length: # When ts_length is longer than number of samples
             raise ValueError("ts_length must be less than or equal to the number of data samples.")
@@ -55,15 +62,18 @@ class DMD:
         self.x2 = tensor[:, 1:]  # All rows except first row
         self.x0 = self.x1[:, 0]  # Initial state vector
 
-    def fit(self, data, ts_length: int, r=None):
+
+    def fit(self, data, ts_length, r=None, mode_selection=False, lambda_min=0.9, lambda_max=1.1):
         """
         Fitting DMD Model 
 
         Args:
-            data : numpy.ndarray or pandas.DataFrame
-                Flatten, row, time series Input data.
-            ts_length : int
-                Length of time series window.
+            data (numpy.ndarray or pandas.DataFrame) : Flatten, row, time series Input data.
+            ts_length (int) : Length of time series window.
+            r (int, optional) : Rank for SVD truncation.
+            mode_selection (bool, optional) : Whether to perform mode selection. Default is False.
+            lambda_min (float, optional) : Minimum threshold for eigenvalue magnitude. Used if mode_selection is True.
+            lambda_max (float, optional) : Maximum threshold for eigenvalue magnitude. Used if mode_selection is True.
 
         Raises:
             ValueError
@@ -74,11 +84,16 @@ class DMD:
             raise ValueError("ts_length must be positive integer.")
         self.ts_length = ts_length
 
-        self.get_dmd_pair(data=data, ts_length=ts_length) # Generate data pair
-        self.svd_x1(r) # Perform SVD on X1 and select rank
-        self.get_atilde() # Calculate low-dimensional approximation matirx A~
-        self.get_eig_atilde() # Get Eigen value and vector of A~        
-        self.get_dmd() # Calculate DMD Mode matrix
+        self.get_dmd_pair(data=data, ts_length=ts_length)  # Generate data pair
+        self.svd_x1(r)  # Perform SVD on X1 and select rank
+        self.get_atilde()  # Calculate low-dimensional approximation matrix A~
+        self.get_eig_atilde()  # Get eigenvalues and eigenvectors of A~
+
+        if mode_selection:
+            self.select_modes(lambda_min=lambda_min, lambda_max=lambda_max)  # Perform mode selection
+
+        self.get_dmd()  # Calculate DMD Mode matrix
+
 
     def svd_x1(self, r=None):
         """
@@ -106,6 +121,7 @@ class DMD:
         self.s = s
         self.vt = vt
 
+
     def get_atilde(self):
         """
         Calculate the approximate linear dynamics matrix A~ in low-dimensional space.
@@ -115,11 +131,33 @@ class DMD:
         # A~ = U^T * X2 * V * Σ^{-1}
         self.atilde = self.u.T @ self.x2 @ self.vt.T @ np.diag(s_inv)
 
+
     def get_eig_atilde(self):
         """
         Calculate the eigenvalues and eigenvectors of approximate matrix A~
         """
         self.lamb, self.w = np.linalg.eig(self.atilde)
+        self.lamb_full = self.lamb
+        self.w_full = self.w
+
+
+    def select_modes(self, lambda_min=0.9, lambda_max=1.1):
+        """
+        Select Important DMD modes based on the magnitue of eigenvalues.
+
+        Args:
+        lambda_min (float) : Minimun threshold for eigenvalue magnitude.
+        lambda_max (float) : Maximun threshold for eigenvalue magnitude.
+        """
+        # Calculate absolute value of eigenvalue
+        abs_lamb = np.abs(self.lamb_full)
+
+        idx = np.where((abs_lamb >= lambda_min) & (abs_lamb <= lambda_max))[0]
+
+        # Update with sellected eigenvalue and eigenvector
+        self.lamb = self.lamb_full[idx]
+        self.w = self.w_full[:, idx]
+
 
     def get_dmd(self):
         """
@@ -129,6 +167,7 @@ class DMD:
         s_inv = np.array([1 / si if si > 1e-10 else 0 for si in self.s])
         # Φ = X2 * V * Σ^{-1} * W
         self.phi = self.x2 @ self.vt.T @ np.diag(s_inv) @ self.w
+
 
     def predict_future(self, t: int):
         """

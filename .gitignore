@@ -1,8 +1,25 @@
-# Ignore all __pycache__
-**/__pycache__/
+# Sphinx build directory
+build/
 
-# Ignore data files
+# OS-specific files
+.DS_Store
+Thumbs.db
+
+# Python bytecode
+**__pycache__/
+
+# Virtual environment
+venv/
+
+# Optional Sphinx files
+Makefile
+make.bat
+
+# Data files
 data/
 
-# Ignore reference codes
-reference/
+# Documents files
+docs/
+
+# Legacy codes
+legacy/
