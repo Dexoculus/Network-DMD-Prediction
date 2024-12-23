@@ -19,15 +19,14 @@ class DMD:
         Generates data pair (X1, X2) for DMD algorithm.
 
         Args:
-            data (numpy.ndarray or pandas.DataFrame)
+            data (numpy.ndarray or pandas.DataFrame): 
                 Flatten, row, time series Input data.
-            ts_length (int)
-                Length of time series window.
+            ts_length (int): Length of time series window.
 
         Raises:
-            ValueError
+            ValueError:
                 Accurs when ts_length is longer than number of data sample.
-            TypeError
+            TypeError:
                 Accurs when data type is not suppoted.
         """
         # Validation of input data type and shape

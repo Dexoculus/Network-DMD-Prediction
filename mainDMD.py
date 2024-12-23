@@ -1,5 +1,5 @@
 from GraphDMD.DMD import DMD
-from GraphDMD.DMD.face2face import Dataset
+from GraphDMD.DMD import Dataset
 from GraphDMD.utils import *
 
 def main():
@@ -7,7 +7,7 @@ def main():
     path = './data/resistance/network0.csv'
     
     dmd = DMD
-    dataset = Dataset(w_path)
+    dataset = Dataset(path)
     
     ts_length = 1
     r = 30

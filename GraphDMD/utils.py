@@ -60,7 +60,8 @@ def DMD_touring(DMD_Class, dataset, ts_length,
     # Start from ts_length to ensure we have enough data for the initial window
     for t in range(ts_length, len(dataset) - 1):
         # Prepare future control input
-        control_future = dataset.get_control_inputs(t + 1).reshape(-1, 1)  # Shape: (m*m, 1)
+        if hasattr(dataset, 'get_control_inputs'):
+            control_future = dataset.get_control_inputs(t + 1).reshape(-1, 1)  # Shape: (m*m, 1)
         
         # Predict the next state
         if model.category() == 'DMDc':

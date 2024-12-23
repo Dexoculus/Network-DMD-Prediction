@@ -13,7 +13,7 @@ class Dataset:
     
     # Function to create an adjacency matrix from a single row = timestep
     def _to_adjacency_matrix(self, row):
-        edge = round(np.sqrt(edge, edge))
+        edge = round(np.sqrt(len(row)))
         # Extract only the columns related to the adjacency matrix, ignoring the 'TIME' column
         adjacency_matrix = row[1:].values.reshape((edge, edge))
         
